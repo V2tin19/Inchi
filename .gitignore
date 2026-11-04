@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment & credentials
+.env
+.env.local
+config.json
+
+# Build & Logs
+dist/
+build/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+.zcode/
