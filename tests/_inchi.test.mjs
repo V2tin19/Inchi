@@ -127,31 +127,32 @@ check('今日统计', r.reply.includes('今天学了 0分钟') && r.reply.includ
 r = await handleAgentMessage(env, '本周总结一下');
 check('周报数据版', r.reply.includes('最近 7 天'), r.reply);
 
-/* ---------- 10. 排期：「今天学数学两小时」自动应用 + 撤销 ---------- */
-r = await handleAgentMessage(env, '今天学数学两小时');
+/* ---------- 10. 排期：「明天学数学两小时」自动应用 + 撤销 ---------- */
+const tmr = new Date(Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10)) + 86400000).toISOString().slice(0, 10);
+r = await handleAgentMessage(env, '明天学数学两小时');
 check('排期自动应用', r.reply.includes('排好时间块') && r.reply.includes('数学（1小时30分钟）') && r.reply.includes('数学（30分钟）'), r.reply);
 let plan = JSON.parse(env.__store.get('kaoyan').payload);
-const todaySlots = plan.days[today].slots;
-check('时间块写入 kaoyan plan', todaySlots.length === 2
-  && todaySlots[0].subject === '数学' && todaySlots[1].subject === '数学', JSON.stringify(todaySlots));
+const tmrSlots = plan.days[tmr].slots;
+check('时间块写入 kaoyan plan', tmrSlots.length === 2
+  && tmrSlots[0].subject === '数学' && tmrSlots[1].subject === '数学', JSON.stringify(tmrSlots));
 const undoTop = JSON.parse(env.__store.get('agent_undo').payload).slice(-1)[0];
 check('排期快照入撤销栈', undoTop.kind === 'plan_day' && undoTop.undo.hadDay === false, JSON.stringify(undoTop));
 
 r = await handleAgentMessage(env, '撤销');
 check('撤销排期', r.reply.includes('已撤销'), r.reply);
 plan = JSON.parse(env.__store.get('kaoyan').payload);
-check('撤销后 days 里这天被删掉', !plan.days || !plan.days[today], JSON.stringify(plan.days));
+check('撤销后 days 里这天被删掉', !plan.days || !plan.days[tmr], JSON.stringify(plan.days));
 
 /* 排期再排一次 + 重复撤销（hadDay=true 分支） */
-r = await handleAgentMessage(env, '今天学英语一小时');
+r = await handleAgentMessage(env, '明天学英语一小时');
 check('再排一次', r.reply.includes('排好时间块'), r.reply);
-r = await handleAgentMessage(env, '今天学数学一小时');
-check('继续追加不覆盖', JSON.parse(env.__store.get('kaoyan').payload).days[today].slots.length === 2,
+r = await handleAgentMessage(env, '明天学数学一小时');
+check('继续追加不覆盖', JSON.parse(env.__store.get('kaoyan').payload).days[tmr].slots.length === 2,
   JSON.stringify(JSON.parse(env.__store.get('kaoyan').payload).days));
 r = await handleAgentMessage(env, '撤销');
-check('撤销第二次排期，保留第一次', JSON.parse(env.__store.get('kaoyan').payload).days[today].slots.length === 1, r.reply);
+check('撤销第二次排期，保留第一次', JSON.parse(env.__store.get('kaoyan').payload).days[tmr].slots.length === 1, r.reply);
 r = await handleAgentMessage(env, '撤销');
-check('撤销第一次排期', !JSON.parse(env.__store.get('kaoyan').payload).days[today], r.reply);
+check('撤销第一次排期', !JSON.parse(env.__store.get('kaoyan').payload).days[tmr], r.reply);
 
 /* 学了（过去式）不能被排期劫持 */
 r = await handleAgentMessage(env, '今天学了英语一小时');

@@ -2,129 +2,181 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>寸序 · Inchi — 对话式时间块与成长自律智能体</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>寸序 · Inchi — 对话式单日规划与日历智能体</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Top Bar -->
-  <header class="topbar">
-    <a href="#" class="brand">
-      <div class="brand-icon">寸</div>
-      <div>
-        <span class="brand-title">寸序</span>
-        <span class="brand-subtitle">Inchi</span>
-      </div>
-    </a>
-
-    <div class="topbar-center">
-      <div class="date-pill" id="date-pill">2026-11-04 周三</div>
-      <div class="countdown-pill" id="countdown-pill">距离初试 52 天</div>
-    </div>
-
-    <div class="topbar-actions">
-      <button class="icon-btn" id="notif-btn" title="通知消息" onclick="Inchi.toggleNotifs()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-        <span class="notif-badge" id="notif-count" style="display:none">0</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Container -->
-  <main class="main-container">
-    <!-- Bubble Focus Deck -->
-    <section class="focus-deck" id="focus-deck">
-      <div class="deck-header">
-        <h2 class="deck-title">今日节奏 · Focus Cadence</h2>
-        <div class="deck-metrics" id="deck-metrics">
-          今日已投入：<strong>3小时00分</strong> / 目标 5小时 (60%)
+  <div id="app">
+    <!-- Top Bar -->
+    <header id="topbar">
+      <div class="brand-group">
+        <div class="brand-icon">寸</div>
+        <div class="brand-text">
+          <span class="brand-title">寸序</span>
+          <span class="brand-sub">Inchi</span>
         </div>
       </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="deck-progress" style="width: 60%"></div>
-      </div>
 
-      <div class="deck-grid">
-        <div class="deck-box">
-          <div class="box-label">当下 / 下一个时间块</div>
-          <div class="box-content" id="next-slot">
-            <span><strong>14:30 - 16:00</strong> · 408 操作系统</span>
-            <span class="task-capsule" style="color:var(--terracotta)">待开始</span>
-          </div>
-        </div>
-
-        <div class="deck-box">
-          <div class="box-label">本周弹性任务</div>
-          <div class="task-capsules" id="task-capsules">
-            <div class="task-capsule">
-              <span>数学强化</span>
-              <div class="progress-mini"><div class="progress-mini-bar" style="width:50%"></div></div>
-              <span>7.5/15h</span>
-            </div>
-            <div class="task-capsule">
-              <span>408突破</span>
-              <div class="progress-mini"><div class="progress-mini-bar" style="width:60%"></div></div>
-              <span>6/10h</span>
-            </div>
-            <div class="task-capsule">
-              <span>真题精读</span>
-              <div class="progress-mini"><div class="progress-mini-bar" style="width:40%"></div></div>
-              <span>2/5h</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Conversation Thread -->
-    <section class="chat-thread" id="chat-thread">
-      <!-- Agent Greeting -->
-      <div class="chat-message msg-agent">
-        <div class="agent-bubble">
-你好，我是<strong>寸序 (Inchi)</strong>。
-大禹惜寸阴，君子辨次序。把你想记的学习成果、排期想法直接说给我听，比如：
-· <em>「今天下午学了2小时数据结构」</em>
-· <em>「明天早上帮我排两小时高数」</em>
-· <em>「写日志：今天把树的遍历刷完了，手感顺畅」</em>
-
-所有重要改动都会先生成确认卡片，排期也可一键撤销，随时轻松说人话。
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Floating Dock -->
-  <div class="dock-wrapper">
-    <div class="dock-content">
-      <!-- Quick Chips -->
-      <div class="chips-row">
-        <button class="chip-btn" onclick="Inchi.useChip('今天下午学了2小时数据结构，刷了王道课后题')">⚡ 记学习: 2小时数据结构</button>
-        <button class="chip-btn" onclick="Inchi.useChip('今天学408两小时')">🗓️ 排期: 今天学408两小时</button>
-        <button class="chip-btn" onclick="Inchi.useChip('写日志：今天复习了操作系统内存管理，刷题全对')">📝 写日志</button>
-        <button class="chip-btn" onclick="Inchi.useChip('今天安排')">📊 查安排</button>
-        <button class="chip-btn" onclick="Inchi.useChip('撤销')">↩️ 撤销</button>
-      </div>
-
-      <!-- Input Form -->
-      <form class="input-capsule" id="chat-form" onsubmit="Inchi.sendMessage(event)">
-        <input type="text" class="input-field" id="user-input" placeholder="输入日常语言，随时可撤销…" autocomplete="off">
-        <button type="submit" class="send-btn" id="send-btn" title="发送">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="19" x2="12" y2="5"></line>
-            <polyline points="5 12 12 5 19 12"></polyline>
-          </svg>
+      <!-- Mode Switcher (onekichan 经典模式栏) -->
+      <nav id="modebar" class="segmented-nav">
+        <button class="seg-btn sel" data-mode="split" onclick="Inchi.setMode('split')">
+          <span class="seg-icon">◫</span> 协同看板
         </button>
-      </form>
-    </div>
-  </div>
+        <button class="seg-btn" data-mode="day" onclick="Inchi.setMode('day')">
+          <span class="seg-icon">🗓️</span> 单日规划
+        </button>
+        <button class="seg-btn" data-mode="month" onclick="Inchi.setMode('month')">
+          <span class="seg-icon">📅</span> 日历
+        </button>
+        <button class="seg-btn" data-mode="chat" onclick="Inchi.setMode('chat')">
+          <span class="seg-icon">💬</span> 对话助手
+        </button>
+      </nav>
 
-  <div id="toast-slot"></div>
+      <!-- Right Top Actions -->
+      <div class="topbar-actions">
+        <div class="countdown-pill" id="countdown-pill">初试倒计时 52 天</div>
+        <button class="icon-btn" id="notif-btn" title="通知消息" onclick="Inchi.toggleNotifs()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <span class="notif-badge" id="notif-count" style="display:none">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace (Desktop Split or Full Single View) -->
+    <main id="workspace" class="mode-split">
+      <!-- Left Panel: Schedule / Calendar Section -->
+      <section id="planner-pane" class="pane">
+        <!-- Planner Sub-Nav: Date switcher and Jump to Today -->
+        <div class="pane-header">
+          <div class="date-navigator">
+            <button class="nav-arrow-btn" onclick="Inchi.navDay(-1)" title="前一天">‹</button>
+            <button class="today-jump-btn" onclick="Inchi.jumpToday()" id="btn-today">今天</button>
+            <button class="nav-arrow-btn" onclick="Inchi.navDay(1)" title="后一天">›</button>
+            <h2 class="current-date-heading" id="current-date-label">2026-11-04 周三</h2>
+          </div>
+          <div class="pane-header-stats" id="pane-date-stats">
+            今日计划 <strong>4小时</strong> · 完成率 <strong>60%</strong>
+          </div>
+        </div>
+
+        <!-- 1. Week Strip (7-day quick switcher) -->
+        <nav class="week-strip" id="week-strip"></nav>
+
+        <!-- 2. Day View (07:00 - 24:00 timeline with placed blocks and nowline) -->
+        <div id="view-day" class="view-panel">
+          <div class="timeline-scroll-wrap" id="timeline-scroll">
+            <div class="day-canvas" id="day-canvas">
+              <div class="hour-col" id="hour-col"></div>
+              <div class="time-grid" id="time-grid">
+                <div class="nowline" id="nowline">
+                  <span class="nowline-tag" id="nowline-tag">14:35</span>
+                </div>
+                <!-- Dynamic Placed Blocks Rendered Here -->
+              </div>
+            </div>
+
+            <!-- Flexible Tasks Box (灵活安排区) -->
+            <div class="flex-tasks-section">
+              <div class="section-subhead">
+                <span>🎯 灵活安排 / 弹性任务（尚未排入具体时间块）</span>
+                <span class="badge-mini" id="flex-count">3 项</span>
+              </div>
+              <div class="flex-task-cards" id="flex-task-cards"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Month Calendar View (35/42 Grid) -->
+        <div id="view-month" class="view-panel" style="display:none">
+          <div class="month-header">
+            <button class="nav-arrow-btn" onclick="Inchi.navMonth(-1)">‹ 上月</button>
+            <h3 class="month-title" id="month-title">2026 年 11 月</h3>
+            <button class="nav-arrow-btn" onclick="Inchi.navMonth(1)">下月 ›</button>
+          </div>
+          <div class="month-dow-header">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+          </div>
+          <div class="month-cells-grid" id="month-cells-grid"></div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Conversation Dialog Window (Claude / Anthropic style) -->
+      <section id="chat-pane" class="pane">
+        <div class="chat-pane-header">
+          <div class="chat-title-wrap">
+            <span class="chat-agent-avatar">寸</span>
+            <div>
+              <div class="chat-agent-name">寸序助手</div>
+              <div class="chat-agent-status">说人话排期 · 卡片防误 · 一键撤销</div>
+            </div>
+          </div>
+          <div class="chat-pane-actions">
+            <button class="text-link-btn" onclick="Inchi.useChip('撤销')">↩️ 撤销</button>
+            <button class="text-link-btn" onclick="Inchi.useChip('今天安排')">查安排</button>
+          </div>
+        </div>
+
+        <!-- Chat Conversation Stream -->
+        <div class="chat-stream-wrap" id="chat-stream">
+          <div class="chat-message msg-agent">
+            <div class="agent-bubble">
+你好，我是<strong>寸序</strong>。
+左侧是你的<strong>单日规划时间轴与日历</strong>，右侧随时用日常话语跟我聊。
+你可以直接对我说：
+· <em>「今天下午学了2小时数据结构」</em>（右侧出卡片，确认后左侧标绿打卡）
+· <em>「今天学408两小时」</em>（自动切块，左侧时间轴实时排入）
+· <em>「写日志：刷完了二叉树大题，效率很高」</em>
+            </div>
+          </div>
+        </div>
+
+        <!-- Composer / Input Dock -->
+        <div class="chat-composer-dock">
+          <!-- Prompt Chips -->
+          <div class="chips-scroll">
+            <button class="chip-item" onclick="Inchi.useChip('今天下午学了2小时数据结构，刷了王道课后题')">⚡ 记学习: 2h数据结构</button>
+            <button class="chip-item" onclick="Inchi.useChip('今天学408两小时')">🗓️ 排期: 今天学408两小时</button>
+            <button class="chip-item" onclick="Inchi.useChip('写日志：今天复习了操作系统内存管理，刷题全对')">📝 写日志</button>
+            <button class="chip-item" onclick="Inchi.useChip('今天安排')">📊 查安排</button>
+          </div>
+
+          <!-- Input Capsule -->
+          <form class="composer-capsule" onsubmit="Inchi.sendMessage(event)">
+            <input type="text" class="composer-input" id="user-input" placeholder="输入日常语言，随时可撤销…" autocomplete="off">
+            <button type="submit" class="composer-send-btn" id="send-btn" title="发送">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <!-- Block Detail Modal -->
+    <div id="modal-mask" class="modal-mask" style="display:none" onclick="Inchi.closeModal(event)">
+      <div class="modal-card" id="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title" id="modal-block-title">时间块详情</h3>
+          <button class="modal-close-btn" onclick="Inchi.closeModal()">✕</button>
+        </div>
+        <div class="modal-body" id="modal-block-body"></div>
+        <div class="modal-actions" id="modal-block-actions"></div>
+      </div>
+    </div>
+
+    <!-- Floating Toast -->
+    <div id="toast-slot"></div>
+  </div>
 
   <script src="app.js"></script>
 </body>
