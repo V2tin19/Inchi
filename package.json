@@ -4,7 +4,8 @@
   "description": "Inchi (寸序) — Conversational AI Time-Boxing & Habit-Learning Study Partner",
   "type": "module",
   "scripts": {
-    "dev": "node dev-server.mjs",
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
     "test": "node tests/agent/_nlu.test.mjs && node tests/agent/_scheduler.test.mjs && node tests/_inchi.test.mjs"
   },
   "keywords": [

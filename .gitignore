@@ -11,6 +11,7 @@ Desktop.ini
 .env
 .env.local
 config.json
+data/
 
 # Build & Logs
 dist/

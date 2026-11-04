@@ -1177,6 +1177,16 @@ body {
   margin-bottom: 18px;
 }
 
+.settings-status-box {
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
 /* Modal Form Styles */
 .modal-form {
   display: flex;

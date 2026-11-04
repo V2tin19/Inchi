@@ -119,11 +119,13 @@ export function allocateDay(input) {
       const wi = pickWin(subject, Math.min(minBlock, remaining));
       if (wi === -1) break;
       const { a, b } = work[wi];
+      const winSize = b - a;
+      if (winSize < minBlock) { work.splice(wi, 1); continue; }
 
-      let len = Math.min(remaining, maxBlock);
+      let len = Math.min(remaining, maxBlock, winSize);
       let nextRemaining = remaining - len;
       /* 小尾巴：剩 <20 分钟且本窗装得下剩余全部 → 一块放完，避免 10 分钟碎块 */
-      if (nextRemaining > 0 && nextRemaining < tailMerge && (b - a) >= remaining) {
+      if (nextRemaining > 0 && nextRemaining < tailMerge && winSize >= remaining) {
         len = remaining;
         nextRemaining = 0;
       }

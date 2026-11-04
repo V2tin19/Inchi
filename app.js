@@ -4,7 +4,7 @@
  */
 
 const Inchi = {
-  apiBase: '',
+  apiBase: localStorage.getItem('inchi_apibase') || '',
   token: localStorage.getItem('inchi_token') || 'inchi-token',
   
   selDate: new Date().toISOString().slice(0, 10),
@@ -801,6 +801,64 @@ const Inchi = {
     const mask = document.getElementById('modal-mask');
     if (mask) mask.style.display = 'none';
     this.editingSlotIndex = -1;
+  },
+
+  /* ================= 8. 系统与 AI 设置 ================= */
+  async openSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    const tokenInput = document.getElementById('setting-token');
+    const apiInput = document.getElementById('setting-apibase');
+    const statusBox = document.getElementById('settings-ai-status');
+
+    if (tokenInput) tokenInput.value = this.token;
+    if (apiInput) apiInput.value = this.apiBase;
+    if (statusBox) statusBox.innerHTML = '正在探测后端 AI 状态…';
+
+    if (modal) modal.style.display = 'flex';
+
+    try {
+      const res = await fetch(`${this.apiBase}/api/status`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.llm?.configured) {
+          statusBox.innerHTML = `🟢 <strong>已就绪</strong>：模型 <code>${data.llm.model}</code><br><span style="font-size:11.5px;color:var(--text-muted)">端点: ${data.llm.base}</span>`;
+        } else {
+          statusBox.innerHTML = `⚪ <strong>未配置 API Key</strong><br><span style="font-size:12px;color:var(--text-secondary)">当前处于离线规则引擎模式（基本排期、计时打卡可用）。请在服务端 <code>.env</code> 文件中填入 <code>LLM_API_KEY</code> 后重启服务。</span>`;
+        }
+      } else {
+        statusBox.innerHTML = `🟡 <strong>未能获取 AI 状态</strong> (HTTP ${res.status})`;
+      }
+    } catch (err) {
+      statusBox.innerHTML = `⚠️ <strong>无法连接到服务端</strong> (${err.message})<br><span style="font-size:11.5px;color:var(--text-muted)">请检查服务地址或当前网络</span>`;
+    }
+  },
+
+  closeSettingsModal(event) {
+    if (event && event.target && event.target.id !== 'settings-modal') return;
+    const modal = document.getElementById('settings-modal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  saveSettings() {
+    const tokenInput = document.getElementById('setting-token');
+    const apiInput = document.getElementById('setting-apibase');
+
+    const newToken = tokenInput ? tokenInput.value.trim() : '';
+    const newApi = apiInput ? apiInput.value.trim().replace(/\/+$/, '') : '';
+
+    this.token = newToken || 'inchi-token';
+    localStorage.setItem('inchi_token', this.token);
+
+    this.apiBase = newApi;
+    if (newApi) {
+      localStorage.setItem('inchi_apibase', newApi);
+    } else {
+      localStorage.removeItem('inchi_apibase');
+    }
+
+    this.closeSettingsModal();
+    this.showToast('✅ 设置已保存，重新加载数据…');
+    Promise.all([this.loadPlan(), this.loadTasks()]).then(() => this.renderAll());
   },
 
   updateTopbarDate() {

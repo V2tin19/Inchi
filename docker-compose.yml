@@ -1,0 +1,14 @@
+services:
+  inchi:
+    build: .
+    container_name: inchi
+    restart: unless-stopped
+    ports:
+      - "8792:8792"
+    env_file:
+      - .env
+    volumes:
+      - inchi-data:/app/data
+
+volumes:
+  inchi-data:
