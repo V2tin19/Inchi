@@ -14,7 +14,6 @@
     <!-- Top Bar -->
     <header id="topbar">
       <div class="brand-group">
-        <div class="brand-icon">寸</div>
         <div class="brand-text">
           <span class="brand-title">寸序</span>
           <span class="brand-sub">Inchi</span>
@@ -39,7 +38,6 @@
 
       <!-- Right Top Actions -->
       <div class="topbar-actions">
-        <div class="countdown-pill" id="countdown-pill">初试倒计时 52 天</div>
         <button class="icon-btn" id="notif-btn" title="通知消息" onclick="Inchi.toggleNotifs()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -62,8 +60,9 @@
             <button class="nav-arrow-btn" onclick="Inchi.navDay(1)" title="后一天">›</button>
             <h2 class="current-date-heading" id="current-date-label">2026-11-04 周三</h2>
           </div>
-          <div class="pane-header-stats" id="pane-date-stats">
-            今日计划 <strong>4小时</strong> · 完成率 <strong>60%</strong>
+          <div class="pane-header-actions">
+            <span class="pane-header-stats" id="pane-date-stats">计划 4.0h · 完成 60%</span>
+            <button class="btn-primary-mini" onclick="Inchi.openNewBlockModal()" title="手动添加安排">+ 排期</button>
           </div>
         </div>
 
@@ -75,7 +74,7 @@
           <div class="timeline-scroll-wrap" id="timeline-scroll">
             <div class="day-canvas" id="day-canvas">
               <div class="hour-col" id="hour-col"></div>
-              <div class="time-grid" id="time-grid">
+              <div class="time-grid" id="time-grid" onclick="Inchi.handleGridClick(event)" title="点击空白时段可直接手动排期">
                 <div class="nowline" id="nowline">
                   <span class="nowline-tag" id="nowline-tag">14:35</span>
                 </div>
@@ -112,11 +111,8 @@
       <section id="chat-pane" class="pane">
         <div class="chat-pane-header">
           <div class="chat-title-wrap">
-            <span class="chat-agent-avatar">寸</span>
-            <div>
-              <div class="chat-agent-name">寸序助手</div>
-              <div class="chat-agent-status">说人话排期 · 卡片防误 · 一键撤销</div>
-            </div>
+            <div class="chat-agent-name">寸序助手</div>
+            <div class="chat-agent-status">说人话排期 · 卡片防误 · 一键撤销</div>
           </div>
           <div class="chat-pane-actions">
             <button class="text-link-btn" onclick="Inchi.useChip('撤销')">↩️ 撤销</button>
@@ -129,8 +125,8 @@
           <div class="chat-message msg-agent">
             <div class="agent-bubble">
 你好，我是<strong>寸序</strong>。
-左侧是你的<strong>单日规划时间轴与日历</strong>，右侧随时用日常话语跟我聊。
-你可以直接对我说：
+左侧是你的<strong>单日规划时间轴与日历</strong>，支持直接点击空白处手动添加时间块。
+右侧随时用日常话语跟我聊，例如：
 · <em>「今天下午学了2小时数据结构」</em>（右侧出卡片，确认后左侧标绿打卡）
 · <em>「今天学408两小时」</em>（自动切块，左侧时间轴实时排入）
 · <em>「写日志：刷完了二叉树大题，效率很高」</em>
@@ -162,15 +158,65 @@
       </section>
     </main>
 
-    <!-- Block Detail Modal -->
+    <!-- Block Create / Edit Modal -->
     <div id="modal-mask" class="modal-mask" style="display:none" onclick="Inchi.closeModal(event)">
       <div class="modal-card" id="modal-card" onclick="event.stopPropagation()">
         <div class="modal-header">
-          <h3 class="modal-title" id="modal-block-title">时间块详情</h3>
+          <h3 class="modal-title" id="modal-title">排入时间块</h3>
           <button class="modal-close-btn" onclick="Inchi.closeModal()">✕</button>
         </div>
-        <div class="modal-body" id="modal-block-body"></div>
-        <div class="modal-actions" id="modal-block-actions"></div>
+        
+        <form class="modal-form" id="block-form" onsubmit="Inchi.saveBlockForm(event)">
+          <div class="form-group">
+            <label class="form-label">科目类别</label>
+            <div class="subject-chips" id="form-subj-chips">
+              <button type="button" class="subj-chip sel" data-subj="数学" onclick="Inchi.selectFormSubj('数学')">数学</button>
+              <button type="button" class="subj-chip" data-subj="408" onclick="Inchi.selectFormSubj('408')">408</button>
+              <button type="button" class="subj-chip" data-subj="英语" onclick="Inchi.selectFormSubj('英语')">英语</button>
+              <button type="button" class="subj-chip" data-subj="政治" onclick="Inchi.selectFormSubj('政治')">政治</button>
+            </div>
+            <input type="text" id="f-subject" class="form-input" placeholder="或输入自定义科目" required value="数学">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">开始时间</label>
+              <input type="time" id="f-start" class="form-input" required value="14:00" onchange="Inchi.updateDurationByTime()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">结束时间</label>
+              <input type="time" id="f-end" class="form-input" required value="15:30">
+            </div>
+          </div>
+
+          <div class="quick-duration-row">
+            <span class="quick-dur-label">预设块长：</span>
+            <button type="button" class="quick-dur-btn" onclick="Inchi.setDuration(45)">45分钟</button>
+            <button type="button" class="quick-dur-btn" onclick="Inchi.setDuration(60)">1小时</button>
+            <button type="button" class="quick-dur-btn" onclick="Inchi.setDuration(90)">1.5小时</button>
+            <button type="button" class="quick-dur-btn" onclick="Inchi.setDuration(120)">2小时</button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">具体主题 / 目标 (选填)</label>
+            <input type="text" id="f-topic" class="form-input" placeholder="例如：线性代数二次型真题突破">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">状态</label>
+            <select id="f-status" class="form-select">
+              <option value="todo">待执行 ⏳</option>
+              <option value="done">已完成 ✅</option>
+            </select>
+          </div>
+
+          <div class="modal-actions" id="modal-actions">
+            <button type="button" class="btn-danger-link" id="btn-delete-block" style="display:none" onclick="Inchi.deleteCurrentBlock()">删除该时间块</button>
+            <div style="flex:1"></div>
+            <button type="button" class="btn-secondary" onclick="Inchi.closeModal()">取消</button>
+            <button type="submit" class="btn-primary" id="btn-save-block">排入规划</button>
+          </div>
+        </form>
       </div>
     </div>
 

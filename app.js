@@ -14,6 +14,7 @@ const Inchi = {
   plan: { days: {}, exam_date: '2026-12-26' },
   tasks: [],
   taskProgress: {},
+  editingSlotIndex: -1,
 
   HOUR_START: 7, // 07:00 开始
   HOUR_END: 24,  // 24:00 结束
@@ -31,6 +32,11 @@ const Inchi = {
     ]);
 
     this.renderAll();
+
+    // ESC 快捷键关闭弹窗
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.closeModal();
+    });
 
     // 每分钟更新一次当前时间红线与通知
     setInterval(() => {
@@ -81,7 +87,6 @@ const Inchi = {
     this.renderDay();
     this.renderFlexTasks();
     this.renderMonthGrid();
-    this.updateCountdown();
   },
 
   /* ================= 1. 数据加载 ================= */
@@ -89,7 +94,9 @@ const Inchi = {
     try {
       const res = await fetch(`${this.apiBase}/api/admin/kaoyan-plan`, { headers: this.headers() });
       if (res.ok) {
-        this.plan = await res.json();
+        const data = await res.json();
+        this.plan = data.plan || data;
+        if (!this.plan.days) this.plan.days = {};
       }
     } catch (err) {
       console.warn('读取计划失败:', err);
@@ -196,7 +203,11 @@ const Inchi = {
         <div class="block-title">${this.escapeHtml(slot.subject)} ${slot.topic ? '· ' + this.escapeHtml(slot.topic) : ''}</div>
       `;
 
-      block.addEventListener('click', () => this.openBlockModal(slot));
+      block.title = '点击编辑或删除此时间块';
+      block.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openBlockModal(slot);
+      });
       timeGrid.appendChild(block);
     });
 
@@ -515,49 +526,234 @@ const Inchi = {
     this.sendMessage();
   },
 
-  /* ================= 7. 弹窗与通用组件 ================= */
-  openBlockModal(slot) {
-    const mask = document.getElementById('modal-mask');
-    const title = document.getElementById('modal-block-title');
-    const body = document.getElementById('modal-block-body');
-    const actions = document.getElementById('modal-block-actions');
+  /* ================= 7. 手动排期与弹窗组件 ================= */
+  handleGridClick(event) {
+    if (event.target && event.target.closest('.time-block')) return;
 
-    title.textContent = `${slot.subject} · 时间块详情`;
-    body.innerHTML = `
-      ⏰ 时段：<strong>${slot.start} - ${slot.end}</strong><br>
-      📚 科目：<strong>${slot.subject}</strong><br>
-      🎯 内容：${slot.topic || '暂无详细主题'}<br>
-      📌 状态：<span style="color:${slot.status === 'done' ? 'var(--sage)' : 'var(--terracotta)'}">
-        ${slot.status === 'done' ? '已完成 ✅' : '待执行 ⏳'}
-      </span>
-    `;
+    const grid = document.getElementById('time-grid');
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    const y = Math.max(0, event.clientY - rect.top);
 
-    actions.innerHTML = `
-      <button class="btn-primary" onclick="Inchi.markSlotDone('${slot.start}')">
-        ${slot.status === 'done' ? '标为未完成' : '打卡完成 ✅'}
-      </button>
-      <button class="btn-secondary" onclick="Inchi.closeModal()">关闭</button>
-    `;
+    // 计算点击位置对应的分钟数（以 15 分钟为刻度对齐）
+    const totalMin = (y / this.HOUR_H) * 60;
+    const snappedMin = Math.max(0, Math.floor(totalMin / 15) * 15);
+    let targetMin = this.HOUR_START * 60 + snappedMin;
 
-    mask.style.display = 'flex';
+    if (targetMin < this.HOUR_START * 60) targetMin = this.HOUR_START * 60;
+    if (targetMin > (this.HOUR_END - 1) * 60) targetMin = (this.HOUR_END - 1) * 60;
+
+    const startH = String(Math.floor(targetMin / 60)).padStart(2, '0');
+    const startM = String(targetMin % 60).padStart(2, '0');
+    const startTime = `${startH}:${startM}`;
+
+    let endMin = Math.min(this.HOUR_END * 60, targetMin + 90);
+    const endH = String(Math.floor(endMin / 60)).padStart(2, '0');
+    const endM = String(endMin % 60).padStart(2, '0');
+    const endTime = `${endH}:${endM}`;
+
+    this.openNewBlockModal(startTime, endTime);
   },
 
-  async markSlotDone(start) {
-    const day = this.plan?.days?.[this.selDate];
-    if (day && day.slots) {
-      const s = day.slots.find(x => x.start === start);
-      if (s) {
-        s.status = s.status === 'done' ? 'todo' : 'done';
-        this.renderDay();
-        this.showToast(s.status === 'done' ? '✅ 时间块已标为完成' : '已重置为待执行');
+  openNewBlockModal(defaultStart, defaultEnd, defaultSubj) {
+    this.editingSlotIndex = -1;
+    const mask = document.getElementById('modal-mask');
+    const title = document.getElementById('modal-title');
+    const delBtn = document.getElementById('btn-delete-block');
+    const saveBtn = document.getElementById('btn-save-block');
+
+    if (title) title.textContent = `排入时间块 (${this.selDate})`;
+    if (delBtn) delBtn.style.display = 'none';
+    if (saveBtn) saveBtn.textContent = '排入规划';
+
+    const startInput = document.getElementById('f-start');
+    const endInput = document.getElementById('f-end');
+    const topicInput = document.getElementById('f-topic');
+    const statusSelect = document.getElementById('f-status');
+
+    let s = defaultStart;
+    if (!s) {
+      const now = new Date();
+      const nextH = Math.min(22, Math.max(this.HOUR_START, now.getHours() + 1));
+      s = `${String(nextH).padStart(2, '0')}:00`;
+    }
+    let e = defaultEnd;
+    if (!e) {
+      const sMin = this.toMin(s);
+      const eMin = Math.min(this.HOUR_END * 60, sMin + 90);
+      e = `${String(Math.floor(eMin / 60)).padStart(2, '0')}:${String(eMin % 60).padStart(2, '0')}`;
+    }
+
+    if (startInput) startInput.value = s;
+    if (endInput) endInput.value = e;
+    if (topicInput) topicInput.value = '';
+    if (statusSelect) statusSelect.value = 'todo';
+
+    this.selectFormSubj(defaultSubj || '数学');
+
+    if (mask) mask.style.display = 'flex';
+  },
+
+  openBlockModal(slot) {
+    const dayData = this.plan?.days?.[this.selDate];
+    const slots = dayData?.slots || [];
+    this.editingSlotIndex = slots.findIndex(x => x.start === slot.start && x.subject === slot.subject);
+
+    const mask = document.getElementById('modal-mask');
+    const title = document.getElementById('modal-title');
+    const delBtn = document.getElementById('btn-delete-block');
+    const saveBtn = document.getElementById('btn-save-block');
+
+    if (title) title.textContent = `编辑时间块 · ${slot.subject}`;
+    if (delBtn) delBtn.style.display = 'inline-block';
+    if (saveBtn) saveBtn.textContent = '保存修改';
+
+    const startInput = document.getElementById('f-start');
+    const endInput = document.getElementById('f-end');
+    const topicInput = document.getElementById('f-topic');
+    const statusSelect = document.getElementById('f-status');
+
+    if (startInput) startInput.value = slot.start;
+    if (endInput) endInput.value = slot.end;
+    if (topicInput) topicInput.value = slot.topic || '';
+    if (statusSelect) statusSelect.value = slot.status || 'todo';
+
+    this.selectFormSubj(slot.subject);
+
+    if (mask) mask.style.display = 'flex';
+  },
+
+  selectFormSubj(subj) {
+    const input = document.getElementById('f-subject');
+    if (input) input.value = subj;
+    document.querySelectorAll('#form-subj-chips .subj-chip').forEach(chip => {
+      chip.classList.toggle('sel', chip.dataset.subj === subj);
+    });
+  },
+
+  setDuration(minutes) {
+    const startInput = document.getElementById('f-start');
+    const endInput = document.getElementById('f-end');
+    if (!startInput || !endInput) return;
+    const startMin = this.toMin(startInput.value);
+    const endMin = Math.min(this.HOUR_END * 60, startMin + minutes);
+    const endH = String(Math.floor(endMin / 60)).padStart(2, '0');
+    const endM = String(endMin % 60).padStart(2, '0');
+    endInput.value = `${endH}:${endM}`;
+  },
+
+  updateDurationByTime() {
+    const startInput = document.getElementById('f-start');
+    const endInput = document.getElementById('f-end');
+    if (!startInput || !endInput) return;
+    const startMin = this.toMin(startInput.value);
+    const endMin = this.toMin(endInput.value);
+    if (endMin <= startMin) {
+      this.setDuration(90);
+    }
+  },
+
+  async saveBlockForm(event) {
+    if (event) event.preventDefault();
+    const subj = document.getElementById('f-subject')?.value.trim() || '自主学习';
+    const start = document.getElementById('f-start')?.value;
+    const end = document.getElementById('f-end')?.value;
+    const topic = document.getElementById('f-topic')?.value.trim() || '';
+    const status = document.getElementById('f-status')?.value || 'todo';
+
+    if (!start || !end) {
+      this.showToast('请填写完整的开始与结束时间');
+      return;
+    }
+
+    const startMin = this.toMin(start);
+    const endMin = this.toMin(end);
+    if (endMin <= startMin) {
+      this.showToast('⚠️ 结束时间必须晚于开始时间');
+      return;
+    }
+
+    if (!this.plan.days) this.plan.days = {};
+    if (!this.plan.days[this.selDate]) this.plan.days[this.selDate] = { slots: [] };
+    if (!Array.isArray(this.plan.days[this.selDate].slots)) {
+      this.plan.days[this.selDate].slots = [];
+    }
+
+    const slots = this.plan.days[this.selDate].slots;
+    const newSlot = { start, end, subject: subj, topic, status };
+
+    // 冲突检测：检查与其他时间块是否重叠
+    for (let i = 0; i < slots.length; i++) {
+      if (i === this.editingSlotIndex) continue;
+      const other = slots[i];
+      const otherStart = this.toMin(other.start);
+      const otherEnd = this.toMin(other.end);
+      if (Math.max(startMin, otherStart) < Math.min(endMin, otherEnd)) {
+        this.showToast(`⚠️ 与现有「${other.subject} (${other.start}-${other.end})」重叠`);
+        return;
       }
     }
+
+    if (this.editingSlotIndex >= 0 && this.editingSlotIndex < slots.length) {
+      slots[this.editingSlotIndex] = newSlot;
+    } else {
+      slots.push(newSlot);
+    }
+
+    // 按时间顺序升序排列
+    slots.sort((a, b) => this.toMin(a.start) - this.toMin(b.start));
+
     this.closeModal();
+    this.renderDay();
+    this.renderWeekStrip();
+    this.renderMonthGrid();
+
+    const ok = await this.persistPlan();
+    if (ok) {
+      this.showToast(this.editingSlotIndex >= 0 ? '✅ 已更新排期' : '✅ 已排入规划');
+    } else {
+      this.showToast('⚠️ 本地已更新，远程同步稍后重试');
+    }
   },
 
-  closeModal() {
+  async deleteCurrentBlock() {
+    if (this.editingSlotIndex < 0) return;
+    const slots = this.plan?.days?.[this.selDate]?.slots;
+    if (!slots || !slots[this.editingSlotIndex]) return;
+
+    const removed = slots.splice(this.editingSlotIndex, 1)[0];
+    this.editingSlotIndex = -1;
+
+    this.closeModal();
+    this.renderDay();
+    this.renderWeekStrip();
+    this.renderMonthGrid();
+    this.showToast(`🗑️ 已删除「${removed.subject}」`);
+
+    await this.persistPlan();
+  },
+
+  async persistPlan() {
+    try {
+      const res = await fetch(`${this.apiBase}/api/admin/kaoyan-plan`, {
+        method: 'PUT',
+        headers: this.headers(),
+        body: JSON.stringify({ plan: this.plan })
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('保存计划失败:', err);
+      return false;
+    }
+  },
+
+  closeModal(event) {
+    if (event && event.target && event.target.id !== 'modal-mask') {
+      return;
+    }
     const mask = document.getElementById('modal-mask');
     if (mask) mask.style.display = 'none';
+    this.editingSlotIndex = -1;
   },
 
   updateTopbarDate() {
@@ -565,15 +761,6 @@ const Inchi = {
     const dowCn = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     const cur = new Date();
     if (pill) pill.textContent = `${cur.toISOString().slice(0, 10)} ${dowCn[cur.getDay()]}`;
-  },
-
-  updateCountdown() {
-    const pill = document.getElementById('countdown-pill');
-    if (!pill) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const exam = this.plan?.exam_date || '2026-12-26';
-    const diff = Math.ceil((new Date(exam) - new Date(today)) / (1000 * 3600 * 24));
-    pill.textContent = diff >= 0 ? `初试倒计时 ${diff} 天` : '考试已结束';
   },
 
   async checkNotifications() {
