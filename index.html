@@ -74,9 +74,13 @@
           <div class="timeline-scroll-wrap" id="timeline-scroll">
             <div class="day-canvas" id="day-canvas">
               <div class="hour-col" id="hour-col"></div>
-              <div class="time-grid" id="time-grid" onclick="Inchi.handleGridClick(event)" title="点击空白时段可直接手动排期">
+              <div class="time-grid" id="time-grid" onclick="Inchi.handleGridClick(event)" onmousemove="Inchi.handleGridHover(event)" onmouseleave="Inchi.handleGridLeave()" title="点击空白时段可直接手动排期">
                 <div class="nowline" id="nowline">
                   <span class="nowline-tag" id="nowline-tag">14:35</span>
+                </div>
+                <!-- 鼠标悬浮浅灰动效 (Ghost Hover Block) -->
+                <div class="grid-hover-guide" id="grid-hover-guide" style="display:none">
+                  <span class="hover-guide-label" id="hover-guide-label">+ 点击排期 14:00 - 15:30</span>
                 </div>
                 <!-- Dynamic Placed Blocks Rendered Here -->
               </div>

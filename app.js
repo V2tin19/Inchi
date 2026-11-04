@@ -527,6 +527,52 @@ const Inchi = {
   },
 
   /* ================= 7. 手动排期与弹窗组件 ================= */
+  handleGridHover(event) {
+    const guide = document.getElementById('grid-hover-guide');
+    const label = document.getElementById('hover-guide-label');
+    if (!guide || !label) return;
+
+    // 若当前鼠标悬浮在已有时间块上，隐藏占位导引
+    if (event.target && event.target.closest('.time-block')) {
+      guide.style.display = 'none';
+      return;
+    }
+
+    const grid = document.getElementById('time-grid');
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    const y = Math.max(0, event.clientY - rect.top);
+
+    const totalMin = (y / this.HOUR_H) * 60;
+    const snappedMin = Math.max(0, Math.floor(totalMin / 15) * 15);
+    let targetMin = this.HOUR_START * 60 + snappedMin;
+
+    if (targetMin < this.HOUR_START * 60) targetMin = this.HOUR_START * 60;
+    if (targetMin > (this.HOUR_END - 1) * 60) targetMin = (this.HOUR_END - 1) * 60;
+
+    const startH = String(Math.floor(targetMin / 60)).padStart(2, '0');
+    const startM = String(targetMin % 60).padStart(2, '0');
+    const startTime = `${startH}:${startM}`;
+
+    let endMin = Math.min(this.HOUR_END * 60, targetMin + 90);
+    const endH = String(Math.floor(endMin / 60)).padStart(2, '0');
+    const endM = String(endMin % 60).padStart(2, '0');
+    const endTime = `${endH}:${endM}`;
+
+    const top = ((targetMin - this.HOUR_START * 60) / 60) * this.HOUR_H;
+    const height = Math.max(36, ((endMin - targetMin) / 60) * this.HOUR_H - 4);
+
+    guide.style.display = 'flex';
+    guide.style.top = `${top}px`;
+    guide.style.height = `${height}px`;
+    label.textContent = `+ 点击排期 ${startTime} - ${endTime}`;
+  },
+
+  handleGridLeave() {
+    const guide = document.getElementById('grid-hover-guide');
+    if (guide) guide.style.display = 'none';
+  },
+
   handleGridClick(event) {
     if (event.target && event.target.closest('.time-block')) return;
 
@@ -552,6 +598,7 @@ const Inchi = {
     const endM = String(endMin % 60).padStart(2, '0');
     const endTime = `${endH}:${endM}`;
 
+    this.handleGridLeave();
     this.openNewBlockModal(startTime, endTime);
   },
 
