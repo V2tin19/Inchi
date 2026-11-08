@@ -1,5 +1,5 @@
 /**
- * server.mjs —— 寸序 (Inchi) 独立生产级运行服务
+ * server.mjs —— 理序 (Cairn) 独立生产级运行服务
  *
  * 适用于：个人 VPS (Ubuntu/Debian/CentOS)、Docker 容器、家用 NAS、本地电脑。
  *
@@ -12,11 +12,14 @@
 
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { onRequestGet as agentChatGet, onRequestPost as agentChatPost } from './functions/api/admin/agent/chat.js';
 import * as agentTasks from './functions/api/admin/agent/tasks.js';
+import * as agentWorkbench from './functions/api/admin/agent/workbench.js';
+import * as agentNotes from './functions/api/admin/agent/notes.js';
 import * as agentSchedule from './functions/api/admin/agent/schedule.js';
 import * as agentLogs from './functions/api/admin/agent/logs.js';
 import * as agentOutbox from './functions/api/admin/agent/outbox.js';
@@ -25,6 +28,8 @@ import * as agentLearn from './functions/api/admin/agent/learn.js';
 import * as agentCron from './functions/api/admin/agent/cron/[kind].js';
 import * as kaoyanPlan from './functions/api/admin/kaoyan-plan.js';
 import * as docHandler from './functions/api/admin/doc.js';
+import * as aiConfig from './functions/api/admin/agent/ai-config.js';
+import { resolveLlmConfig } from './functions/api/_llm.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,7 +62,7 @@ function loadEnv() {
 loadEnv();
 
 const PORT = Number(process.env.PORT || 8792);
-const TOKEN = process.env.ADMIN_TOKEN || 'inchi-token';
+const TOKEN = process.env.ADMIN_TOKEN || 'cairn-token';
 const DATA_DIR = path.join(ROOT, 'data');
 const DB_FILE = path.join(DATA_DIR, 'inchi_store.json');
 
@@ -181,7 +186,7 @@ function getEnv() {
                   return;
                 }
                 if (/CREATE TABLE/.test(sql)) return;
-                throw new Error('Inchi DB: 未实现的 SQL: ' + sql);
+                throw new Error('Cairn DB: 未实现的 SQL: ' + sql);
               }
             };
           }
@@ -231,7 +236,8 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.apk': 'application/vnd.android.package-archive'
 };
 
 const server = http.createServer(async (req, res) => {
@@ -255,19 +261,20 @@ const server = http.createServer(async (req, res) => {
   /* 系统状态端点 */
   if (p === '/api/status') {
     const env = getEnv();
-    const hasKey = Boolean(env.LLM_API_KEY && env.LLM_API_KEY.trim());
+    const cfg = await resolveLlmConfig(env);
     res.writeHead(200, {
       'content-type': 'application/json; charset=utf-8',
       'access-control-allow-origin': '*'
     });
     return res.end(JSON.stringify({
       ok: true,
-      name: '寸序 (Inchi)',
+      name: '理序 (Cairn)',
       version: '1.0.0',
       llm: {
-        configured: hasKey,
-        base: env.LLM_BASE_URL,
-        model: env.LLM_MODEL
+        configured: Boolean(cfg.apiKey),
+        base: cfg.apiBase,
+        model: cfg.model,
+        source: cfg.source   /* 'ui' 网页配置 | 'env' 环境变量 | 'none' 未配置 */
       }
     }));
   }
@@ -280,11 +287,14 @@ const server = http.createServer(async (req, res) => {
 
   const AGENT_MODS = {
     '/api/admin/agent/tasks': agentTasks,
+    '/api/admin/agent/workbench': agentWorkbench,
+    '/api/admin/agent/notes': agentNotes,
     '/api/admin/agent/schedule': agentSchedule,
     '/api/admin/agent/logs': agentLogs,
     '/api/admin/agent/outbox': agentOutbox,
     '/api/admin/agent/profile': agentProfile,
     '/api/admin/agent/learn': agentLearn,
+    '/api/admin/agent/ai-config': aiConfig,
     '/api/admin/kaoyan-plan': kaoyanPlan,
     '/api/admin/doc': docHandler
   };
@@ -312,7 +322,11 @@ const server = http.createServer(async (req, res) => {
   try {
     const data = fs.readFileSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { 'content-type': MIME[ext] || 'text/plain' });
+    /* 个人工具迭代快，文本资产一律 no-store，免得浏览器拿旧 JS 配新后端 */
+    const noStore = ['.html', '.js', '.mjs', '.css'].includes(ext)
+      ? { 'cache-control': 'no-store' }
+      : {};
+    res.writeHead(200, { 'content-type': MIME[ext] || 'text/plain', ...noStore });
     res.end(data);
   } catch (err) {
     res.writeHead(404, { 'content-type': 'text/plain' });
@@ -323,7 +337,15 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   const env = getEnv();
   const llmStatus = env.LLM_API_KEY ? `✅ 已接入 (${env.LLM_MODEL} @ ${env.LLM_BASE_URL})` : '⚪ 未配置（纯规则引擎降级运行）';
-  console.log(`\n🌿 寸序 (Inchi) 独立服务已启动：http://0.0.0.0:${PORT}`);
+  console.log(`\n🌿 理序 (Cairn) 独立服务已启动：http://localhost:${PORT}`);
+  /* 手机/局域网接入：把非内部网卡的 IPv4 都打出来 */
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    for (const a of list || []) {
+      if (a.family === 'IPv4' && !a.internal) {
+        console.log(`📱 局域网接入：http://${a.address}:${PORT}  (${name})`);
+      }
+    }
+  }
   console.log(`   访问令牌：${TOKEN}`);
   console.log(`   AI 引擎：${llmStatus}`);
   console.log(`   本地数据归档目录：${DATA_DIR}`);

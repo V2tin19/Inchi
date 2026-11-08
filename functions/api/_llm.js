@@ -16,6 +16,8 @@
  *   LLM_MODEL_STRONG 可选（跑周报这类一次性的重活，不配则回落 LLM_MODEL）
  */
 
+import { readDoc } from './agent/_store.js';
+
 const DEFAULT_BASE = 'https://api.deepseek.com';
 const DEFAULT_MODEL = 'deepseek-chat';
 
@@ -28,6 +30,42 @@ export function llmConfig(env) {
     model: String(env.LLM_MODEL || DEFAULT_MODEL),
     modelStrong: String(env.LLM_MODEL_STRONG || env.LLM_MODEL || DEFAULT_MODEL)
   };
+}
+
+/**
+ * 解析当前生效的 LLM 配置。
+ * 优先级：网页「自定义 AI 接口」保存的配置（doc key ai_config）> 环境变量。
+ * 网页端保存的配置改完即生效，不用动 .env 也不用重启服务。
+ */
+export async function resolveLlmConfig(env) {
+  /* 1. 网页保存的自定义配置（apiKey 非空才算配置过） */
+  try {
+    const { data } = await readDoc(env, 'ai_config');
+    if (data && String(data.apiKey || '').trim()) {
+      const model = String(data.model || '').trim() || String(env.LLM_MODEL || DEFAULT_MODEL);
+      return {
+        apiBase: String(data.baseUrl || env.LLM_BASE_URL || DEFAULT_BASE).replace(/\/+$/, ''),
+        apiKey: String(data.apiKey).trim(),
+        model,
+        modelStrong: String(data.modelStrong || model).trim(),
+        source: 'ui'
+      };
+    }
+  } catch { /* DB 不可用时当作没配，走环境变量 */ }
+
+  /* 2. 环境变量（.env / Cloudflare 项目设置） */
+  const envKey = String(env.LLM_API_KEY || '').trim();
+  return {
+    apiBase: String(env.LLM_BASE_URL || DEFAULT_BASE).replace(/\/+$/, ''),
+    apiKey: envKey,
+    model: String(env.LLM_MODEL || DEFAULT_MODEL),
+    modelStrong: String(env.LLM_MODEL_STRONG || env.LLM_MODEL || DEFAULT_MODEL),
+    source: envKey ? 'env' : 'none'
+  };
+}
+
+export async function llmReadyAsync(env) {
+  return Boolean((await resolveLlmConfig(env)).apiKey);
 }
 
 export function llmReady(env) {
@@ -77,8 +115,8 @@ function ValueError(msg) {
  * 5xx / 空内容各自动重试一次（重试时放大 token 预算，喂饱推理型模型）。
  */
 export async function llmChat(env, messages, opts = {}) {
-  const c = llmConfig(env);
-  if (!c.apiKey) throw new LLMError('环境变量 LLM_API_KEY 还没配');
+  const c = await resolveLlmConfig(env);
+  if (!c.apiKey) throw new LLMError('还没配置 AI 接口：请在网页「系统与 AI 配置」里保存，或在服务端 .env 里设置 LLM_API_KEY');
   const {
     maxTokens = 1500, temperature = 0.4, forceJson = false,
     model, timeoutMs = 90000

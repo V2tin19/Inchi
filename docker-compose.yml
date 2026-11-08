@@ -1,13 +1,14 @@
 services:
-  inchi:
+  cairn:
     build: .
-    container_name: inchi
+    container_name: cairn
     restart: unless-stopped
     ports:
       - "8792:8792"
     env_file:
       - .env
     volumes:
+      # 卷名保持 inchi-data：已部署环境换卷名会导致重新建空卷丢数据
       - inchi-data:/app/data
 
 volumes:

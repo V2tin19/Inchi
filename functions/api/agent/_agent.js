@@ -19,7 +19,7 @@ import {
 } from './_stats.js';
 import { allocateDay, resolve_plan_day, extract_plan_day } from './_scheduler.js';
 import { readDoc, writeDoc, newId, nowIso } from './_store.js';
-import { llmChat, llmChatJson, LLMError } from '../_llm.js';
+import { llmChat, llmChatJson, llmReadyAsync, LLMError } from '../_llm.js';
 import { normalizeSession, parseStudyDoc } from '../admin/study-session.js';
 import { buildDayLog, saveLog, deleteLog } from './_logs.js';
 
@@ -1016,9 +1016,9 @@ async function _weeklyReport(env, ctx) {
   }
   if (stats.adherence !== null) lines.push(`计划符合度 ${Math.round(stats.adherence * 100)}%`);
 
-  /* 有 LLM key 就让教练开口说话（心情从日记里拿，拿不到不影响主体） */
+  /* 有 LLM 配置（网页保存或环境变量）就让教练开口说话（心情从日记里拿，拿不到不影响主体） */
   let narrative = '';
-  if (env.LLM_API_KEY) {
+  if (await llmReadyAsync(env)) {
     try {
       const moods = await pickWeekMoods(env, ctx.today);
       narrative = await llmChat(env, [

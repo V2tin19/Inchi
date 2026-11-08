@@ -1,12 +1,32 @@
-# 寸序 (Inchi) 部署与 AI 接入指南
+# 理序 (Cairn) 部署与 AI 接入指南
 
-本文档介绍如何在**个人服务器（Linux VPS / 家用 NAS / Windows Server / 本地）**或 **Cloudflare Pages** 部署寸序，并接入大模型 API。
+本文档介绍如何在**个人服务器（Linux VPS / 家用 NAS / Windows Server / 本地）**或 **Cloudflare Pages** 部署理序，并接入大模型 API。
 
 ---
 
+
+## 手机版（PWA）与局域网接入
+
+### 手机怎么用
+
+1. 电脑启动服务后，终端会打印所有局域网地址（形如 `http://192.168.x.x:8792`，`0.0.0.0` 监听，无需额外配置）。
+2. 手机连同一 Wi-Fi，浏览器打开该地址；首次进入到「系统设置 → 服务器地址」核对连接测试通过（默认令牌 `cairn-token`，改过就填你自己的）。
+3. 浏览器菜单选「添加到主屏幕」——PWA 清单与图标已内置（`manifest.webmanifest` + `icons/`），装上后全屏运行，像原生 App。
+4. Service Worker 为外壳提供离线兜底：断网也能打开界面骨架看个大概；**所有账目接口永不缓存**，联网即实时。
+
+### 网页托管在别处时（远程接入）
+
+若网页部署在 Cloudflare Pages 等其他域名，而服务跑在自己机器上：打开「系统设置 → 服务器地址」，填 `http://你的IP:8792`（协议可省略，自动补 http），点「测试连接」验证握手，保存后所有模块（工作台/便签/日历/对话）立即切换到该服务器，令牌一并生效。
+
+注意事项：
+
+- 服务端已带 CORS 全放行（`access-control-allow-origin: *` + OPTIONS 预检），跨源直连无需配置；
+- **混合内容**：如果网页是 HTTPS 而服务器是 HTTP，浏览器会拦截——此时请直接从同一服务器的地址打开网页；
+- Service Worker 对外壳采用 network-first：在线必拿最新代码，只有断网才用缓存，不会出现旧脚本配新后端。
+
 ## 一、AI 大模型 API 接入
 
-寸序采用工业级标准 **OpenAI 兼容协议**（`/chat/completions`），后端自动适配各种中转信封与推理型空响应。
+理序采用工业级标准 **OpenAI 兼容协议**（`/chat/completions`），后端自动适配各种中转信封与推理型空响应。
 
 ### 1. 快速配置方式（.env）
 在项目根目录创建 `.env` 文件（参考 `.env.example`）：
@@ -40,20 +60,20 @@ PORT=8792
 
 > [!TIP]
 > **没有配 API Key 能用吗？**  
-> 完全可以！寸序内建了 47 项严格单元测试的「确定性 NLU 规则引擎与切块算法」。在未配置 Key 时，查排期、记时长、切块防重叠、打卡、一键撤销等 90% 核心功能纯本地离线执行，毫不影响日常自律使用。
+> 完全可以！理序内建了 47 项严格单元测试的「确定性 NLU 规则引擎与切块算法」。在未配置 Key 时，查排期、记时长、切块防重叠、打卡、一键撤销等 90% 核心功能纯本地离线执行，毫不影响日常自律使用。
 
 ---
 
 ## 二、部署到个人服务器
 
-寸序采用纯标准 Node.js ESM 编写，无繁杂编译构建环节，开箱即跑。
+理序采用纯标准 Node.js ESM 编写，无繁杂编译构建环节，开箱即跑。
 
 ### 方案 1：Docker / Docker Compose 部署（推荐，适合 1Panel / 宝塔 / 命令行）
 
 1. 克隆仓库并进入目录：
    ```bash
-   git clone <你的仓库地址> inchi
-   cd inchi
+   git clone <你的仓库地址> cairn
+   cd cairn
    ```
 2. 复制并编辑配置文件：
    ```bash
@@ -65,7 +85,7 @@ PORT=8792
    docker compose up -d
    ```
 4. 数据持久化：
-   所有排期、任务进度、会话记录会自动持久化到 Docker volume `inchi-data`（映射在容器内 `/app/data`）。
+   所有排期、任务进度、会话记录会自动持久化到 Docker volume `cairn-data`（映射在容器内 `/app/data`）。
 
 ---
 
@@ -77,43 +97,43 @@ PORT=8792
    ```
 2. 拉取代码并配置环境：
    ```bash
-   git clone <你的仓库地址> inchi
-   cd inchi
+   git clone <你的仓库地址> cairn
+   cd cairn
    cp .env.example .env
    # 在 .env 中填入你的 TOKEN 和 LLM_API_KEY
    ```
 3. 使用 PM2 启动服务：
    ```bash
-   pm2 start server.mjs --name inchi
+   pm2 start server.mjs --name cairn
    pm2 save
    pm2 startup
    ```
 4. 查看日志与状态：
    ```bash
-   pm2 logs inchi
+   pm2 logs cairn
    pm2 status
    ```
-   服务已在 `http://你的服务器IP:8792` 正常运行。数据自动保存在本地 `data/inchi_store.json`，即使服务器重启也不会丢失。
+   服务已在 `http://你的服务器IP:8792` 正常运行。数据自动保存在本地 `data/cairn_store.json`，即使服务器重启也不会丢失。
 
 ---
 
 ### 方案 3：Systemd 系统服务部署
 
-创建 `/etc/systemd/system/inchi.service`：
+创建 `/etc/systemd/system/cairn.service`：
 
 ```ini
 [Unit]
-Description=Inchi Personal Agent
+Description=Cairn Personal Agent
 After=network.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/var/www/inchi
+WorkingDirectory=/var/www/cairn
 ExecStart=/usr/bin/node server.mjs
 Restart=always
 RestartSec=5
-EnvironmentFile=/var/www/inchi/.env
+EnvironmentFile=/var/www/cairn/.env
 
 [Install]
 WantedBy=multi-user.target
@@ -122,29 +142,29 @@ WantedBy=multi-user.target
 启动并设置开机自启：
 ```bash
 systemctl daemon-reload
-systemctl enable inchi
-systemctl start inchi
+systemctl enable cairn
+systemctl start cairn
 ```
 
 ---
 
 ## 三、配置 Nginx 反向代理与 SSL 证书
 
-绑定你的专属域名（例如 `inchi.yourdomain.com`）：
+绑定你的专属域名（例如 `cairn.yourdomain.com`）：
 
 ```nginx
 server {
     listen 80;
-    server_name inchi.yourdomain.com;
+    server_name cairn.yourdomain.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name inchi.yourdomain.com;
+    server_name cairn.yourdomain.com;
 
-    ssl_certificate /etc/letsencrypt/live/inchi.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/inchi.yourdomain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/cairn.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/cairn.yourdomain.com/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8792;

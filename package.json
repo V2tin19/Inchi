@@ -1,12 +1,12 @@
 {
-  "name": "inchi",
-  "version": "1.0.0",
-  "description": "Inchi (寸序) — Conversational AI Time-Boxing & Habit-Learning Study Partner",
+  "name": "cairn",
+  "version": "2.0.0",
+  "description": "Cairn (理序) — State-Driven Cognitive Scheduler: report your state, get one card, leave a waypoint for next time.",
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "test": "node tests/agent/_nlu.test.mjs && node tests/agent/_scheduler.test.mjs && node tests/_inchi.test.mjs"
+    "test": "node tests/agent/_nlu.test.mjs && node tests/agent/_scheduler.test.mjs && node tests/_cairn.test.mjs"
   },
   "keywords": [
     "ai",

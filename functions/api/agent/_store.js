@@ -10,7 +10,7 @@
  * 每个写入点一次合并内完成读改写，别跨请求持有旧数据。
  */
 
-const AGENT_KEYS = ['agent_tasks', 'agent_logs', 'agent_profile', 'agent_outbox', 'agent_chat', 'agent_undo'];
+const AGENT_KEYS = ['agent_tasks', 'agent_logs', 'agent_profile', 'agent_outbox', 'agent_chat', 'agent_undo', 'agent_state', 'agent_quota', 'agent_notes', 'agent_categories'];
 
 export function isAgentKey(key) {
   return AGENT_KEYS.includes(key);

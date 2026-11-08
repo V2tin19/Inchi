@@ -12,7 +12,7 @@
 import { readDoc, writeDoc, nowIso } from './_store.js';
 import { day_plan, planned_minutes, fmt_minutes } from './_stats.js';
 import { shanghaiToday, shanghaiNowHHMM, addDays } from './_nlu.js';
-import { llmChat } from '../_llm.js';
+import { llmChat, llmReadyAsync } from '../_llm.js';
 
 /** 心态词表（与 health_score 同一套，解析原话里的心情） */
 const MOOD_POS = ['好', '棒', '开心', '不错', '很好', '充实', '满', '爽', '顺利'];
@@ -143,7 +143,7 @@ async function expandLog(env, { date, raw, plan, sessions, metrics }) {
     : '· （今天还没有学习记录）';
   const moodCn = { '好': '不错', '一般': '一般', '糟': '有点累/不顺' }[metrics.mood] || '没提';
 
-  if (llmReady(env)) {
+  if (await llmReadyAsync(env)) {
     try {
       return await llmChat(env, [
         { role: 'system', content: '你是考研学习日志的代笔。把用户最简短的原话，结合当天计划表和实际学习记录，'
@@ -180,10 +180,6 @@ function renderPlanBrief(plan, date) {
   if (!slots.length) return '（这天还没有安排）';
   return slots.map(s => `· ${s.start}-${s.end} ${s.subject}${s.topic ? `（${s.topic}）` : ''}`).join('\n')
     + (note ? `\n备注：${note}` : '');
-}
-
-function llmReady(env) {
-  return !!env.LLM_API_KEY;
 }
 
 /** 读最近 N 天日志 */

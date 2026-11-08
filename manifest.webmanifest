@@ -1,0 +1,17 @@
+{
+  "name": "理序 · Cairn",
+  "short_name": "理序",
+  "description": "状态驱动的个人认知调度系统：先报状态，再发牌。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1E222A",
+  "theme_color": "#1E222A",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
